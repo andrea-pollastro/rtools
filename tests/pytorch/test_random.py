@@ -1,10 +1,8 @@
-import os
 import random
 import numpy as np
 import pytest
 import torch
-
-from research_utils.pytorch.random import set_seed
+from rtools.torch.random import set_seed
 
 
 def test_set_seed_is_repeatable_cpu():
