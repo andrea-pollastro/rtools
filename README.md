@@ -22,39 +22,31 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ## Contents
 
-### rtools.pytorch.random
+### `rtools.pytorch.random`
 
-**set_seed**  
-Sets random seeds for Python, NumPy, and PyTorch to enforce deterministic
-behavior across runs.  
-
----
-
-### rtools.pytorch.model_selection
-
-**train_test_split**  
-A PyTorch-friendly equivalent of `sklearn.model_selection.train_test_split`.
-
-It splits a `torch.utils.data.Dataset` or `Subset` into training and test
-subsets, preserving indices and avoiding data copying.  
-The API mirrors sklearn’s behavior and supports arguments such as
-`test_size`, `train_size`, `shuffle`, `random_state`, and `stratify`.
+- **`set_seed`**  
+  Sets random seeds for Python, NumPy, and PyTorch to enforce deterministic
+  behavior across runs.
 
 ---
 
-### rtools.pytorch.preprocessing
+### `rtools.pytorch.model_selection`
 
-**compute_mean_std**  
-Computes feature-wise mean and standard deviation of a PyTorch dataset in a
-streaming and memory-efficient way.
+- **`train_test_split`**  
+  PyTorch-friendly equivalent of `sklearn.model_selection.train_test_split`.  
+  Splits a `torch.utils.data.Dataset` or `Subset` into train/test subsets,
+  preserving indices and avoiding data copying.  
+  Supports all the parameters of `sklearn.model_selection.train_test_split`.
 
-The result is equivalent to computing `X.mean()` and
-`X.std(unbiased=False)` over the full dataset, but without loading all data
-into memory.  
+---
 
-**StandardizedDataset**  
-A dataset wrapper that applies feature-wise standardization on-the-fly.
+### `rtools.pytorch.preprocessing`
 
-It mimics the behavior of `sklearn.preprocessing.StandardScaler` in a
-PyTorch-native way by applying `(x - mean) / std` lazily in `__getitem__`,
-without modifying the underlying dataset.  
+- **`compute_mean_std`**  
+  Computes feature-wise mean and standard deviation of a dataset in a streaming,
+  memory-efficient way. Equivalent to `X.mean()` and `X.std(unbiased=False)`
+  without loading all data into memory.
+
+- **`StandardizedDataset`**  
+  Dataset wrapper that applies feature-wise standardization on-the-fly.  
+  It applies `(x - mean) / std` lazily in `__getitem__`, without modifying the underlying dataset.
