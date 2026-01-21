@@ -42,11 +42,6 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ### `rtools.pytorch.preprocessing`
 
-- **`compute_mean_std`**  
-  Computes feature-wise mean and standard deviation of a dataset in a streaming,
-  memory-efficient way. Equivalent to `X.mean()` and `X.std(unbiased=False)`
-  without loading all data into memory.
-
 - **`StandardizedDataset`**  
   Dataset wrapper that applies feature-wise standardization on-the-fly.  
   It applies `(x - mean) / std` lazily in `__getitem__`, without modifying the underlying dataset.

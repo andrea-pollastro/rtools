@@ -15,6 +15,7 @@ def train_test_split(
     - Accepts Dataset
     - Accepts Subset whose parent is a Dataset
     - Raises on nested Subset input
+    - *args and **kwargs are forwarded to sklearn.model_selection.train_test_split
     """
     if not isinstance(dataset, (Dataset, Subset)):
         raise TypeError(
