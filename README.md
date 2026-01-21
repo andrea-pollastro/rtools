@@ -45,3 +45,38 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 - **`StandardizedDataset`**  
   Dataset wrapper that applies feature-wise standardization on-the-fly.  
   It applies `(x - mean) / std` lazily in `__getitem__`, without modifying the underlying dataset.
+
+---
+
+### `rtools.pytorch.training`
+
+- **`to_device`**  
+  Moves a tensor or batch of tensors to a specified device.  
+  Handles both single tensors and collections (lists/tuples) of tensors uniformly.
+
+- **`machine_summary`**  
+  Prints formatted system information including machine type, processor, platform,
+  and operating system details.
+
+- **`RunningStats`**  
+  Tracks running statistics for multiple metrics without storing individual values.  
+  Efficiently computes weighted running means for monitoring during training.
+
+---
+
+### `rtools.pytorch.regularization`
+
+- **`EarlyStopping`**  
+  Early stopping mechanism to interrupt training when improvement plateaus.  
+  Monitors both validation and training loss to detect improvement and enforce patience-based stopping.
+
+---
+
+### `rtools.datasets.disentanglement`
+
+- **`DSprites`**  
+  The DSprites (Disentanglement Testing Sprites) dataset for evaluating disentangled
+  representation learning algorithms. A large dataset of 64x64 images of 2D sprites
+  with controlled disentangled factors of variation (shape, scale, orientation, position).  
+  Supports both single sample and paired sample modes for contrastive learning.
+
