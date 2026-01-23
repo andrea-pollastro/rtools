@@ -109,7 +109,7 @@ class DSprites(Dataset):
         # latent common factors
         self.K = K
         if K != -1: # random
-            assert 0 < self.K < self.latents_factors-1, 'k must be in 0 < k < #latentdims'
+            assert 0 < self.K < self.latents_factors, 'k must be in 0 < k < #latentdims'
 
     
     def __len__(self) -> int:
@@ -161,7 +161,7 @@ class DSprites(Dataset):
         if not self.paired:
             return x1, y1
         
-        k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors)-2, ()))
+        k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
         
         y2 = y1.clone()
         
