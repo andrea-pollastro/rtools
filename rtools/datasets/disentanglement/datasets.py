@@ -290,9 +290,6 @@ class ThreeDShapes(Dataset):
         self.latents_classes = torch.as_tensor(data['latents_classes'], dtype=torch.int64)
         self.latents_values = torch.as_tensor(data['latents_values'], dtype=torch.int64)
         
-        # adding channel dim
-        self.X = self.X.unsqueeze(1)
-
         self.latents_factors = self.latents_classes.shape[1]
         # from https://github.com/google-deepmind/dsprites-dataset/blob/master/dsprites_reloading_example.ipynb, 
         #      same logic: https://github.com/google-deepmind/3d-shapes
