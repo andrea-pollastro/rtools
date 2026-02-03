@@ -29,28 +29,6 @@ def to_device(batch: Union[List, Tuple, torch.Tensor], device: str) -> Union[Tup
     else:
         return batch.to(device)
     
-
-def machine_summary() -> None:
-    """
-    Print a formatted summary of the current machine and system information.
-
-    Displays information including network name, machine type, processor,
-    platform, and operating system details to the standard output.
-    """
-    terminal_width = os.get_terminal_size().columns
-    line = '=' * terminal_width
-
-    print(line)
-    print(f"Computer network name: {platform.node()}")
-    print(f"Machine type: {platform.machine()}")
-    print(f"Processor type: {platform.processor()}")
-    print(f"Platform type: {platform.platform()}")
-    print(f"Operating system: {platform.system()}")
-    print(f"Operating system release: {platform.release()}")
-    print(f"Operating system version: {platform.version()}")
-    print(line)
-
-
 class RunningStats:
     """
     Tracker for running statistics of multiple metrics.
@@ -77,7 +55,7 @@ class RunningStats:
         self.total: Dict[str, float] = {m: 0.0 for m in self.metrics}
         self.count = 0
 
-    def update(self, values: Dict[str, float], elem: int = 1) -> None:
+    def update(self, values: Dict[str, float], elem: int) -> None:
         """
         Update running totals with new metric values.
 
