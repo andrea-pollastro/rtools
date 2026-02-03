@@ -53,6 +53,7 @@ class RunningStats:
     def reset(self) -> None:
         """Reset all metric totals and count to zero."""
         self.total: Dict[str, float] = {m: 0.0 for m in self.metrics}
+        self.total_sq: Dict[str, float] = {m: 0.0 for m in self.metrics}
         self.count = 0
 
     def update(self, values: Dict[str, float], elem: int) -> None:
@@ -75,6 +76,7 @@ class RunningStats:
             if m not in self.total:
                 raise KeyError(f"Metric '{m}' was not registered.")
             self.total[m] += v * elem
+            self.total_sq[m] += (v ** 2) * elem
         self.count += elem
 
     def mean(self) -> Dict[str, float]:
@@ -96,5 +98,34 @@ class RunningStats:
 
         return {
             m: self.total[m] / self.count
+            for m in self.metrics
+        }
+    
+    def std(self) -> Dict[str, float]:
+        """
+        Compute the running standard deviation equivalent to torch.std
+        (unbiased estimator, Bessel correction).
+
+        Returns
+        -------
+        Dict[str, float]
+            Dictionary mapping metric names to their standard deviations.
+
+        Raises
+        ------
+        RuntimeError
+            If called before at least two updates.
+        """
+        if self.count < 2:
+            raise RuntimeError(
+                "RunningStats.std() requires at least two samples "
+                "(same behavior as torch.std with unbiased=True)."
+            )
+
+        mean = self.mean()
+        n = self.count
+
+        return {
+            m: ((self.total_sq[m] - n * mean[m] ** 2) / (n - 1)) ** 0.5
             for m in self.metrics
         }
