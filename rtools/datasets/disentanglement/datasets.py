@@ -288,7 +288,7 @@ class ThreeDShapes(Dataset):
         # storing data as tensors
         self.X = torch.as_tensor(data['imgs'], dtype=torch.float32)
         self.latents_classes = torch.as_tensor(data['latents_classes'], dtype=torch.int64)
-        self.latents_values = torch.as_tensor(data['latents_values'], dtype=torch.int64)
+        self.latents_values = torch.as_tensor(data['latents_values'], dtype=torch.float32)
         
         self.latents_factors = self.latents_classes.shape[1]
         # from https://github.com/google-deepmind/dsprites-dataset/blob/master/dsprites_reloading_example.ipynb, 
@@ -359,7 +359,7 @@ class ThreeDShapes(Dataset):
         
         y2 = y1.clone()
         
-        idxs_k = torch.randperm(self.latents_factors-1)[:k]+1
+        idxs_k = torch.randperm(self.latents_factors)[:k]
         S = self.latents_sizes[idxs_k]
         
         offsets = (torch.rand(k) * (S-1)).long() + 1
