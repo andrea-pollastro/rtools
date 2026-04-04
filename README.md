@@ -84,6 +84,18 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ---
 
+### `rtools.parallel`
+
+- **`parallel_map(func, iterable, n_jobs=None, start_method="spawn")`**  
+  Apply a function to items in an iterable using multiprocessing.  
+  Equivalent to `multiprocessing.Pool.map()` with configurable worker count and start method.
+
+- **`parallel_starmap(func, iterable, n_jobs=None, start_method="spawn")`**  
+  Apply a function to unpacked argument tuples using multiprocessing.  
+  Equivalent to `multiprocessing.Pool.starmap()` with configurable worker count and start method.
+
+---
+
 ### `rtools.datasets.disentanglement`
 
 - **`DSprites`**  
