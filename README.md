@@ -50,9 +50,29 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ### `rtools.torch.training`
 
-- **`RunningStats`**  
-  Tracks running statistics for multiple metrics without storing individual values.  
+- **`RunningMean`**  
+  Tracks running mean of multiple metrics without storing individual values.  
   Efficiently computes weighted running means for monitoring during training.
+
+- **`History`**  
+  Tracks history of metrics as lists for visualization and analysis.  
+  Stores complete history and exports to CSV for plotting and reporting.
+
+---
+
+### `rtools.torch.checkpointing`
+
+- **`CheckpointManager`**  
+  Save and load PyTorch checkpoints with epoch-based organization.  
+  Handles model and optimizer state serialization with optional metadata storage.
+
+---
+
+### `rtools.torch.utils`
+
+- **`to_device()`**  
+  Move tensors and nested structures (tuples, lists, dicts) to a specified device.  
+  Recursively handles mixed data types, preserving non-tensor objects.
 
 ---
 
