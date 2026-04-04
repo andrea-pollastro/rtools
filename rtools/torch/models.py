@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class ResNetBlock(nn.Module):
+    """Residual block for ResNet architectures."""
     def __init__(self, in_channels, out_channels, stride=1):
         super().__init__()
         
@@ -31,6 +32,7 @@ class ResNetBlock(nn.Module):
         return out
     
 class ResNet18(nn.Module):
+    """ResNet-18 architecture for image classification."""
     def __init__(self, in_channels: int = 3, n_output: int = 1000):
         super().__init__()
         self.in_channels = in_channels
@@ -73,6 +75,7 @@ class ResNet18(nn.Module):
         return x
     
 class ResNet34(nn.Module):
+    """ResNet-34 architecture for image classification."""
     def __init__(self, in_channels: int = 3, n_output: int = 1000):
         super().__init__()
         self.in_channels = in_channels
@@ -115,6 +118,7 @@ class ResNet34(nn.Module):
         return x
     
 class ResNetTransposeBlock(nn.Module):
+    """Transpose residual block for decoder architectures."""
     def __init__(self, in_channels, out_channels, stride=1):
         super().__init__()
         
@@ -140,6 +144,7 @@ class ResNetTransposeBlock(nn.Module):
         return out
     
 class ResNet18Decoder(nn.Module):
+    """ResNet-18 decoder for generative models."""
     def __init__(self, latent_dim: int = 10, out_channels: int = 3):
         super().__init__()
         self.latent_dim = latent_dim
@@ -180,6 +185,7 @@ class ResNet18Decoder(nn.Module):
         return x
     
 class ResNet34Decoder(nn.Module):
+    """ResNet-34 decoder for generative models."""
     def __init__(self, latent_dim: int = 10, out_channels: int = 3):
         super().__init__()
         self.latent_dim = latent_dim

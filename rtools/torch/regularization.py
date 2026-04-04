@@ -5,48 +5,16 @@ class EarlyStopping:
     """
     Early stopping mechanism to interrupt training when improvement plateaus.
 
-    This class monitors validation and training losses to determine when to stop
-    training. It tracks the best validation loss and allows improvement either
-    through reduction in validation loss or by reducing training loss while
-    maintaining validation loss within a tolerance.
+    Monitors validation and training losses. Stops if no improvement for 'patience' epochs.
 
     Parameters
     ----------
     patience : int
-        Number of epochs without improvement after which training should be
-        interrupted.
+        Number of epochs without improvement after which training should be interrupted.
     min_delta : float, default=0.0
         Minimum change in validation loss to qualify as an improvement.
-        If negative, it is automatically set to 0.0 with a warning.
-
-    Attributes
-    ----------
-    best_valid_loss : float
-        Best validation loss seen so far.
-    best_train_loss : float
-        Training loss corresponding to the best validation loss.
-    epochs_counter : int
-        Number of consecutive epochs without improvement.
-
-    Notes
-    -----
-    - An epoch is considered an improvement if:
-      1. Validation loss decreases by at least min_delta, OR
-      2. Validation loss is within min_delta of the best and training loss decreases
-    - The counter resets to 0 when improvement is detected.
-    - Call `interrupt()` to check if training should be stopped.
     """
     def __init__(self, patience: int, min_delta: float = 0.0):
-        """
-        Initialize the EarlyStopping criterion.
-
-        Parameters
-        ----------
-        patience : int
-            Number of epochs without improvement to tolerate.
-        min_delta : float, default=0.0
-            Minimum change in validation loss to qualify as improvement.
-        """
         if min_delta < 0:
             logger.warning('Negative min_delta; min_delta will be set to 0.')
             min_delta = 0

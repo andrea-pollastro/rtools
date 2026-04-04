@@ -1,34 +1,5 @@
-import os
-import torch
-import platform
-from typing import (
-    Union, 
-    List, 
-    Tuple,
-    Dict,
-)
+from typing import List, Dict
 
-def to_device(batch: Union[List, Tuple, torch.Tensor], device: str) -> Union[Tuple, torch.Tensor]:
-    """
-    Move a batch or tensor to the specified device.
-
-    Parameters
-    ----------
-    batch : Union[List, Tuple, torch.Tensor]
-        The batch to move. Can be a tensor, or a list/tuple of tensors.
-    device : str
-        The target device (e.g., 'cpu', 'cuda', 'cuda:0').
-
-    Returns
-    -------
-    Union[Tuple, torch.Tensor]
-        The batch on the target device. If input is a list/tuple, returns a tuple.
-    """
-    if isinstance(batch, (tuple, list)):
-        return tuple(b.to(device) for b in batch)
-    else:
-        return batch.to(device)
-    
 class RunningStats:
     """
     Tracker for running statistics of multiple metrics.
@@ -56,7 +27,7 @@ class RunningStats:
         self.total_sq: Dict[str, float] = {m: 0.0 for m in self.metrics}
         self.count = 0
 
-    def update(self, values: Dict[str, float], elem: int) -> None:
+    def update(self, values: Dict[str, float], elem: int = 1) -> None:
         """
         Update running totals with new metric values.
 
@@ -65,7 +36,7 @@ class RunningStats:
         values : Dict[str, float]
             Dictionary mapping metric names to their new values.
         elem : int, optional
-            Weight for this update (default=1). Allows batch updates.
+            Weight for this update. Default is 1.
 
         Raises
         ------

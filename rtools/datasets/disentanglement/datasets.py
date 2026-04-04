@@ -1,15 +1,14 @@
 import torch
-import wget
+import urllib.request
 import logging
 import numpy as np
-import h5py
 from copy import deepcopy
 from torch.utils.data import Dataset
 from pathlib import Path
 
 class DSprites(Dataset):
     """
-    DSprites: Disentanglement Testing Sprites Dataset.
+    DSprites dataset for disentanglement testing.
 
     A large dataset of 64x64 gray-scale images of 2D sprites with controlled disentangled
     factors of variation. This dataset is useful for evaluating disentangled
@@ -86,7 +85,7 @@ class DSprites(Dataset):
         dataset_path = self.DATA_PATH / 'dsprites.npz'
         if not dataset_path.exists():
             logging.info('Downloading dataset from %s', DSprites._NPZ_URL)
-            wget.download(url=DSprites._NPZ_URL, out=str(dataset_path))
+            urllib.request.urlretrieve(DSprites._NPZ_URL, str(dataset_path))
             logging.info('Dataset stored in %s', dataset_path)
         
         data = np.load(dataset_path, allow_pickle=True)
@@ -178,7 +177,7 @@ class DSprites(Dataset):
         
 class ThreeDShapes(Dataset):
     """
-    DSprites: Disentanglement Testing Dataset.
+    3DShapes: Disentanglement Testing Dataset.
     from: https://github.com/google-deepmind/3d-shapes
 
     3dshapes is a dataset of 3D shapes procedurally generated from 6 ground truth independent latent factors. 
@@ -257,9 +256,16 @@ class ThreeDShapes(Dataset):
         if not dataset_path.exists():
             h5_path = self.DATA_PATH / '3dshapes.h5'
             logging.info('Downloading dataset from %s', ThreeDShapes._H5_URL)
-            wget.download(url=ThreeDShapes._H5_URL, out=str(h5_path))
+            urllib.request.urlretrieve(ThreeDShapes._H5_URL, str(h5_path))
             logging.info('Dataset stored in %s', dataset_path)
             logging.info('Extracting dataset in %s as npz', self.DATA_PATH)
+
+            try:
+                import h5py
+            except ImportError as exc:
+                raise ImportError(
+                    'ThreeDShapes requires h5py. Install h5py to load this dataset.'
+                ) from exc
 
             with h5py.File(h5_path, 'r') as f:
                 imgs: np.ndarray = f['images'][:] # type: ignore

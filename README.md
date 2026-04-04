@@ -22,7 +22,7 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ## Contents
 
-### `rtools.pytorch.random`
+### `rtools.torch.random`
 
 - **`set_seed`**  
   Sets random seeds for Python, NumPy, and PyTorch to enforce deterministic
@@ -30,7 +30,7 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ---
 
-### `rtools.pytorch.model_selection`
+### `rtools.torch.model_selection`
 
 - **`train_test_split`**  
   PyTorch-friendly equivalent of `sklearn.model_selection.train_test_split`.  
@@ -40,7 +40,7 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ---
 
-### `rtools.pytorch.preprocessing`
+### `rtools.torch.preprocessing`
 
 - **`StandardizedDataset`**  
   Dataset wrapper that applies feature-wise standardization on-the-fly.  
@@ -48,15 +48,7 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ---
 
-### `rtools.pytorch.training`
-
-- **`to_device`**  
-  Moves a tensor or batch of tensors to a specified device.  
-  Handles both single tensors and collections (lists/tuples) of tensors uniformly.
-
-- **`machine_summary`**  
-  Prints formatted system information including machine type, processor, platform,
-  and operating system details.
+### `rtools.torch.training`
 
 - **`RunningStats`**  
   Tracks running statistics for multiple metrics without storing individual values.  
@@ -64,7 +56,7 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
 
 ---
 
-### `rtools.pytorch.regularization`
+### `rtools.torch.regularization`
 
 - **`EarlyStopping`**  
   Early stopping mechanism to interrupt training when improvement plateaus.  
@@ -79,4 +71,8 @@ pip install git+https://github.com/andrea-pollastro/rtools.git
   representation learning algorithms. A large dataset of 64x64 images of 2D sprites
   with controlled disentangled factors of variation (shape, scale, orientation, position).  
   Supports both single sample and paired sample modes for contrastive learning.
+
+- **`ThreeDShapes`**  
+  The 3DShapes dataset for disentanglement research. It downloads and converts the
+  original HDF5 archive, and requires `h5py` when initialized.
 
