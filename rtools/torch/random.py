@@ -4,7 +4,7 @@ import torch
 import logging
 logger = logging.getLogger(__name__)
 
-def set_seed(seed: int):
+def set_seed(seed: int, deterministic: bool = False):
     """
     Set seeds for Python, NumPy, and PyTorch.
     """
@@ -29,10 +29,16 @@ def set_seed(seed: int):
     else:
         logger.info("CUDA not available — GPU seeding skipped")
 
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    logger.debug("cuDNN deterministic=True, benchmark=False")
+    if deterministic:
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        logger.debug("cuDNN deterministic=True, benchmark=False")
 
-    torch.use_deterministic_algorithms(True)
-    logger.info("Deterministic algorithms enforced")
-
+        # warn_only=True logga un warning invece di crashare
+        # quando un'operazione non ha implementazione deterministica
+        torch.use_deterministic_algorithms(True, warn_only=True)
+        logger.info("Deterministic algorithms enforced (warn_only=True)")
+    else:
+        # benchmark=True può accelerare l'addestramento su GPU
+        torch.backends.cudnn.benchmark = True
+        logger.debug("cuDNN benchmark=True (non-deterministic, faster)")
