@@ -51,10 +51,11 @@ def test_dsprites_unpaired_mode_returns_single_sample(mock_dsprites_data):
         mock_path.return_value = mock_path_instance
 
         ds = DSprites(paired=False)
-        img, latents = ds[0]
+        img, latent_classes, latent_values = ds[0]
 
         assert img.shape == (1, 64, 64)
-        assert latents.shape == (6,)
+        assert latent_classes.shape == (6,)
+        assert latent_values.shape == (6,)
 
 
 def test_dsprites_k_parameter_validation(mock_dsprites_data):

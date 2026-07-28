@@ -113,7 +113,7 @@ class CheckpointManager:
             if epoch is not None:
                 checkpoint_path = self.checkpoint_dir / f"checkpoint_epoch_{epoch:05d}.pt"
             else:
-                checkpoint_path = self.checkpoint_dir / "checkpoint.pt"
+                raise ValueError("Must provide either epoch or checkpoint_path")
 
         checkpoint_path = Path(checkpoint_path)
 

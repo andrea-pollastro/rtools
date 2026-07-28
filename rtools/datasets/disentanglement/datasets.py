@@ -41,7 +41,8 @@ class DSprites(Dataset):
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels,
         where x2 is a variation of x1 by K latent factors.
-        If False, returns single samples (x, y).
+        If False, returns single samples (x, y, y_values); y_values duplicates y
+        for datasets without continuous latent values.
 
     Attributes
     ----------
@@ -147,10 +148,10 @@ class DSprites(Dataset):
         Returns
         -------
         If paired=False:
-            tuple of (image, latent_factors)
+            tuple of (image, latent_classes, latent_values)
                 image : torch.Tensor
                     Image tensor of shape (1, 64, 64).
-                latent_factors : torch.Tensor
+                latent_classes : torch.Tensor
                     Discrete latent factor indices.
                 latent_values : torch.Tensor
                     Real latent factor values.
@@ -213,7 +214,8 @@ class ThreeDShapes(Dataset):
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels,
         where x2 is a variation of x1 by K latent factors.
-        If False, returns single samples (x, y).
+        If False, returns single samples (x, y, y_values); y_values duplicates y
+        for datasets without continuous latent values.
 
     Attributes
     ----------
@@ -409,7 +411,8 @@ class Cars3D(Dataset):
         Must satisfy 0 < K < number_of_latent_factors-1.
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels.
-        If False, returns single samples (x, y).
+        If False, returns single samples (x, y, y_values); y_values duplicates y
+        for datasets without continuous latent values.
 
     Attributes
     ----------
@@ -566,9 +569,10 @@ class Cars3D(Dataset):
         Returns
         -------
         If paired=False:
-            tuple of (image, latent_classes)
+            tuple of (image, latent_classes, latent_classes)
                 image : torch.Tensor of shape (3, 64, 64)
                 latent_classes : torch.Tensor of shape (3,)
+                    Returned twice, since Cars3D has no continuous latent values.
 
         If paired=True:
             tuple of ((image1, image2), (factors1, factors2))
@@ -577,7 +581,7 @@ class Cars3D(Dataset):
         """
         x1, y1 = self.X[index], self.latents_classes[index]
         if not self.paired:
-            return x1, y1
+            return x1, y1, y1
 
         # k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
         k: int = self.K if self.K != -1 else int(torch.randint(0, int(self.latents_factors), ()))
@@ -628,7 +632,8 @@ class MPI3DReal(Dataset):
         Must satisfy 0 < K < number_of_latent_factors-1.
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels.
-        If False, returns single samples (x, y).
+        If False, returns single samples (x, y, y_values); y_values duplicates y
+        for datasets without continuous latent values.
 
     Attributes
     ----------
@@ -736,9 +741,10 @@ class MPI3DReal(Dataset):
         Returns
         -------
         If paired=False:
-            tuple of (image, latent_classes)
+            tuple of (image, latent_classes, latent_classes)
                 image : torch.Tensor of shape (3, 64, 64)
                 latent_classes : torch.Tensor of shape (7,)
+                    Returned twice, since MPI3D-Real has no continuous latent values.
 
         If paired=True:
             tuple of ((image1, image2), (factors1, factors2))
@@ -747,7 +753,7 @@ class MPI3DReal(Dataset):
         """
         x1, y1 = self.X[index], self.latents_classes[index]
         if not self.paired:
-            return x1, y1
+            return x1, y1, y1
 
         k: int = self.K if self.K != -1 else int(torch.randint(1, self.latents_factors, ()))
 
@@ -803,7 +809,8 @@ class SmallNORB(Dataset):
         Must satisfy ``0 < K < 4`` (four active factors).
     paired : bool, optional
         If ``True`` (default) returns paired samples ``((x1, x2), (y1, y2))``.
-        If ``False``, returns single samples ``(x, y)``.
+        If ``False``, returns single samples ``(x, y, y)`` (latent classes
+        duplicated, since SmallNORB has no continuous latent values).
 
     Attributes
     ----------
@@ -938,9 +945,10 @@ class SmallNORB(Dataset):
         Returns
         -------
         If ``paired=False``:
-            tuple ``(image, latent_classes)``
+            tuple ``(image, latent_classes, latent_classes)``
                 image         : torch.Tensor, shape ``(1, 64, 64)``
                 latent_classes: torch.Tensor, shape ``(5,)``
+                    Returned twice, since SmallNORB has no continuous latent values.
 
         If ``paired=True``:
             tuple ``((image1, image2), (factors1, factors2))``
@@ -955,7 +963,7 @@ class SmallNORB(Dataset):
         """
         x1, y1 = self.X[index], self.latents_classes[index]
         if not self.paired:
-            return x1, y1
+            return x1, y1, y1
 
         k = self.K if self.K != -1 else int(torch.randint(1, self._N_ACTIVE, ()))
 

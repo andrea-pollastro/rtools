@@ -4,7 +4,7 @@ import torch
 import logging
 logger = logging.getLogger(__name__)
 
-def set_seed(seed: int, deterministic: bool = False):
+def set_seed(seed: int, deterministic: bool = True):
     """
     Set seeds for Python, NumPy, and PyTorch.
     """
