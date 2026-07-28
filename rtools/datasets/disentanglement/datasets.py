@@ -37,7 +37,7 @@ class DSprites(Dataset):
     K : int, optional
         Number of latent factors to vary when creating paired samples.
         If K=-1 (default), a random number of factors is chosen per sample.
-        Must satisfy 0 < K < number_of_latent_factors-1.
+        Must satisfy 0 < K < number_of_latent_factors.
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels,
         where x2 is a variation of x1 by K latent factors.
@@ -210,7 +210,7 @@ class ThreeDShapes(Dataset):
     K : int, optional
         Number of latent factors to vary when creating paired samples.
         If K=-1 (default), a random number of factors is chosen per sample.
-        Must satisfy 0 < K < number_of_latent_factors-1.
+        Must satisfy 0 < K < number_of_latent_factors.
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels,
         where x2 is a variation of x1 by K latent factors.
@@ -350,13 +350,13 @@ class ThreeDShapes(Dataset):
         Returns
         -------
         If paired=False:
-            tuple of (image, latent_factors)
+            tuple of (image, latent_classes, latent_values)
                 image : torch.Tensor
                     Image tensor of shape (1, 64, 64).
-                latent_factors : torch.Tensor
+                latent_classes : torch.Tensor
                     Discrete latent factor indices.
-                latent_factors : torch.Tensor
-                    Real latent factor.
+                latent_values : torch.Tensor
+                    Real latent factor values.
 
         If paired=True:
             tuple of ((image1, image2), (factors1, factors2))
@@ -368,11 +368,11 @@ class ThreeDShapes(Dataset):
         x1, y1 = self.X[index], self.latents_classes[index]
         if not self.paired:
             return x1, y1, self.latents_values[index]
-        
+
         k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
-        
+
         y2 = y1.clone()
-        
+
         idxs_k = torch.randperm(self.latents_factors)[:k]
         S = self.latents_sizes[idxs_k]
         
@@ -408,7 +408,7 @@ class Cars3D(Dataset):
     K : int, optional
         Number of latent factors to vary when creating paired samples.
         If K=-1 (default), a random number of factors is chosen per sample.
-        Must satisfy 0 < K < number_of_latent_factors-1.
+        Must satisfy 0 < K < number_of_latent_factors.
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels.
         If False, returns single samples (x, y, y_values); y_values duplicates y
@@ -628,7 +628,7 @@ class MPI3DReal(Dataset):
     K : int, optional
         Number of latent factors to vary when creating paired samples.
         If K=-1 (default), a random number of factors is chosen per sample.
-        Must satisfy 0 < K < number_of_latent_factors-1.
+        Must satisfy 0 < K < number_of_latent_factors.
     paired : bool, optional
         If True (default), returns paired samples (x1, x2) with (y1, y2) labels.
         If False, returns single samples (x, y, y_values); y_values duplicates y

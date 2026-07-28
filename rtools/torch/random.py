@@ -7,6 +7,19 @@ logger = logging.getLogger(__name__)
 def set_seed(seed: int, deterministic: bool = True):
     """
     Set seeds for Python, NumPy, and PyTorch.
+
+    Parameters
+    ----------
+    seed : int
+        Seed value applied to Python's `random`, NumPy, and PyTorch (CPU and,
+        if available, CUDA).
+    deterministic : bool, default=True
+        If True, forces cuDNN into deterministic mode (`cudnn.deterministic =
+        True`, `cudnn.benchmark = False`) and enables
+        `torch.use_deterministic_algorithms(True, warn_only=True)`. This
+        trades performance for reproducibility. If False, enables
+        `cudnn.benchmark = True` instead, which is faster but not
+        reproducible across runs.
     """
     logger.debug("Setting global seed to %d", seed)
     
