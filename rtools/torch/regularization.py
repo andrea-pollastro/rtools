@@ -39,6 +39,15 @@ class EarlyStopping:
         -------
         bool
             True if improvement was detected (counter reset), False otherwise.
+
+        Notes
+        -----
+        Two cases count as improvement and reset the patience counter:
+        1. `valid_loss` improves on `best_valid_loss` by more than `min_delta`.
+        2. `valid_loss` regresses by less than `min_delta` (within noise
+           tolerance) but `train_loss` still improves on `best_train_loss`.
+           This keeps training going through validation-loss noise as long
+           as the model keeps fitting the training data better.
         """
         if valid_loss < self.best_valid_loss - self.min_delta:
             self.best_valid_loss = valid_loss

@@ -509,9 +509,9 @@ class Cars3D(Dataset):
         Load a single .mat file.
         Raw 'im' has shape (H, W, C, n_azimuth, n_elevation).
         einsum "abcde->deabc" -> (n_elevation, n_azimuth, H, W, C)
-        
-        Wait — disentanglement_lib uses the same einsum and then flattens
-        with elevation as outer loop. We verify axis sizes and swap if needed
+
+        disentanglement_lib uses the same einsum and then flattens with
+        elevation as the outer loop. We verify axis sizes and swap if needed
         so that axis 0 = elevation (size 4), axis 1 = azimuth (size 24).
 
         Returns
@@ -583,8 +583,7 @@ class Cars3D(Dataset):
         if not self.paired:
             return x1, y1, y1
 
-        # k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
-        k: int = self.K if self.K != -1 else int(torch.randint(0, int(self.latents_factors), ()))
+        k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
 
         y2 = y1.clone()
         idxs_k = torch.randperm(self.latents_factors)[:k]
@@ -1051,17 +1050,11 @@ class SmallNORB(Dataset):
         raw_dims = np.frombuffer(s, dtype="<i4", count=n_dim_f, offset=8)
         dims     = [int(raw_dims[i]) for i in range(ndim)]
 
-        dtype_map = {
-            0x1E3D4C55: np.dtype("uint8"),
-            0x1E3D4C54: np.dtype("int32"),
-            0x1E3D4C51: np.dtype("float32"),
-            0x1E3D4C53: np.dtype("float64"),
-        }
-        if magic not in dtype_map:
+        if magic not in SmallNORB._DTYPE_MAP:
             raise ValueError(f"Unknown SmallNORB magic number: {hex(magic)}")
 
         data_offset = 8 + n_dim_f * 4
-        data = np.frombuffer(s, dtype=dtype_map[magic], offset=data_offset)
+        data = np.frombuffer(s, dtype=SmallNORB._DTYPE_MAP[magic], offset=data_offset)
         return data.reshape(dims).copy()
 
     @staticmethod

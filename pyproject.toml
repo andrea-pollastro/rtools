@@ -10,6 +10,8 @@ dependencies = [
   "numpy",
   "torch",
   "scikit-learn",
+  "scipy",
+  "pillow",
 ]
 authors = [{ name = "Andrea Pollastro" }]
 
