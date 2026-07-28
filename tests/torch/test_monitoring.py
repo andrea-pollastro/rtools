@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 import tempfile
-from rtools.torch.training import RunningMean, History
+from rtools.torch.monitoring import RunningMean, History
 
 
 def test_running_mean_initialization():

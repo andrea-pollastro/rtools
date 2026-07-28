@@ -5,6 +5,8 @@ import numpy as np
 from copy import deepcopy
 from torch.utils.data import Dataset
 from pathlib import Path
+import scipy.io as sio
+from PIL import Image
 
 class DSprites(Dataset):
     """
@@ -93,7 +95,7 @@ class DSprites(Dataset):
         # storing data as tensors
         self.X = torch.as_tensor(data['imgs'], dtype=torch.float32)
         self.latents_classes = torch.as_tensor(data['latents_classes'], dtype=torch.int64)
-        self.latents_values = torch.as_tensor(data['latents_values'], dtype=torch.int64)
+        self.latents_values = torch.as_tensor(data['latents_values'], dtype=torch.float32)
         
         # adding channel dim
         self.X = self.X.unsqueeze(1)
@@ -150,6 +152,8 @@ class DSprites(Dataset):
                     Image tensor of shape (1, 64, 64).
                 latent_factors : torch.Tensor
                     Discrete latent factor indices.
+                latent_values : torch.Tensor
+                    Real latent factor values.
 
         If paired=True:
             tuple of ((image1, image2), (factors1, factors2))
@@ -160,7 +164,7 @@ class DSprites(Dataset):
         """
         x1, y1 = self.X[index], self.latents_classes[index]
         if not self.paired:
-            return x1, y1
+            return x1, y1, self.latents_values[index]
         
         k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
         
@@ -349,6 +353,8 @@ class ThreeDShapes(Dataset):
                     Image tensor of shape (1, 64, 64).
                 latent_factors : torch.Tensor
                     Discrete latent factor indices.
+                latent_factors : torch.Tensor
+                    Real latent factor.
 
         If paired=True:
             tuple of ((image1, image2), (factors1, factors2))
@@ -359,7 +365,7 @@ class ThreeDShapes(Dataset):
         """
         x1, y1 = self.X[index], self.latents_classes[index]
         if not self.paired:
-            return x1, y1
+            return x1, y1, self.latents_values[index]
         
         k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
         
@@ -373,3 +379,699 @@ class ThreeDShapes(Dataset):
         x2 = self.X[self.latent_to_index(y2)]
 
         return (x1, x2), (y1, y2)
+
+class Cars3D(Dataset):
+    """
+    Cars3D dataset for disentanglement testing.
+
+    Originally introduced in "Deep Visual Analogy-Making" (Reed et al., 2015).
+    Contains color renderings of 183 car CAD models from 4 elevations and
+    24 azimuths, rescaled to 64x64.
+
+    The dataset contains rendered images parameterized by:
+    - Elevation (4 values)
+    - Azimuth (24 values)
+    - Object type (183 car models)
+
+    For citations:
+        @inproceedings{reed2015deep,
+            title={Deep Visual Analogy-Making},
+            author={Reed, Scott and Zhang, Yi and Zhang, Yuting and Lee, Honglak},
+            booktitle={NeurIPS},
+            year={2015}
+        }
+
+    Parameters
+    ----------
+    K : int, optional
+        Number of latent factors to vary when creating paired samples.
+        If K=-1 (default), a random number of factors is chosen per sample.
+        Must satisfy 0 < K < number_of_latent_factors-1.
+    paired : bool, optional
+        If True (default), returns paired samples (x1, x2) with (y1, y2) labels.
+        If False, returns single samples (x, y).
+
+    Attributes
+    ----------
+    X : torch.Tensor
+        Images tensor of shape (n_samples, 3, 64, 64).
+    latents_classes : torch.Tensor
+        Discrete latent class indices of shape (n_samples, 3).
+        Columns: [elevation, azimuth, object_type]
+    latents_factors : int
+        Number of latent factors (3).
+    latents_sizes : torch.Tensor
+        Size of each latent factor: [4, 24, 183].
+    latents_bases : torch.Tensor
+        Bases for converting latent indices to dataset indices.
+    K : int
+        Number of factors to vary in paired mode.
+
+    Notes
+    -----
+    - Raw .mat files are downloaded from http://www.scottreed.info/ on first use.
+    - Images are stored as float32 tensors in [0, 1] with shape (3, 64, 64).
+    - Dataset is cached as .npz after first load for faster subsequent access.
+    """
+
+    _TAR_URL = "http://www.scottreed.info/files/nips2015-analogy-data.tar.gz"
+    _FACTOR_SIZES = [4, 24, 183]  # elevation, azimuth, object_type
+
+    def __init__(self, K: int = -1, paired: bool = True):
+        self.paired = paired
+        self.DATA_PATH = Path('..') / 'data' / 'cars3d'
+        self.DATA_PATH.mkdir(parents=True, exist_ok=True)
+
+        npz_path = self.DATA_PATH / 'cars3d.npz'
+        if not npz_path.exists():
+            self._download_and_preprocess(npz_path)
+
+        data = np.load(npz_path)
+        self.X = torch.as_tensor(data['imgs'], dtype=torch.float32)
+        self.latents_classes = torch.as_tensor(data['latents_classes'], dtype=torch.int64)
+
+        self.latents_factors = self.latents_classes.shape[1]
+        latents_sizes = np.array(self._FACTOR_SIZES)
+        latents_bases = np.concatenate((
+            latents_sizes[::-1].cumprod()[::-1][1:],
+            np.array([1,])
+        ))
+        self.latents_sizes = torch.as_tensor(latents_sizes, dtype=torch.int64)
+        self.latents_bases = torch.as_tensor(latents_bases, dtype=torch.int64)
+
+        self.K = K
+        if K != -1:
+            assert 0 < self.K < self.latents_factors, 'K must be in 0 < K < #latentdims'
+
+    def _download_and_preprocess(self, npz_path: Path):
+        import tarfile
+        import urllib.request
+
+        tar_path = self.DATA_PATH / 'nips2015-analogy-data.tar.gz'
+        if not tar_path.exists():
+            logging.info('Downloading Cars3D from %s', self._TAR_URL)
+            urllib.request.urlretrieve(self._TAR_URL, str(tar_path))
+            logging.info('Download complete.')
+
+        logging.info('Extracting archive...')
+        with tarfile.open(tar_path, 'r:gz') as tar:
+            tar.extractall(path=self.DATA_PATH)
+
+        mat_dir = self.DATA_PATH / 'data' / 'cars'
+        mat_files = sorted(mat_dir.glob('*.mat'))
+        assert len(mat_files) == 183, f"Expected 183 .mat files, found {len(mat_files)}"
+
+        n_elevation, n_azimuth, n_objects = self._FACTOR_SIZES
+        n_total = n_elevation * n_azimuth * n_objects
+
+        imgs = np.zeros((n_total, 3, 64, 64), dtype=np.float32)
+        latents_classes = np.zeros((n_total, 3), dtype=np.int64)
+
+        for obj_idx, mat_file in enumerate(mat_files):
+            # mesh: (n_elevation, n_azimuth, 3, 64, 64)
+            mesh = self._load_mat(mat_file)
+            for el_idx in range(n_elevation):
+                for az_idx in range(n_azimuth):
+                    sample_idx = (el_idx * n_azimuth * n_objects
+                                  + az_idx * n_objects
+                                  + obj_idx)
+                    imgs[sample_idx] = mesh[el_idx, az_idx]
+                    latents_classes[sample_idx] = [el_idx, az_idx, obj_idx]
+
+        logging.info('Saving preprocessed dataset to %s', npz_path)
+        np.savez_compressed(npz_path, imgs=imgs, latents_classes=latents_classes)
+
+    def _load_mat(self, mat_file: Path) -> np.ndarray:
+        """
+        Load a single .mat file.
+        Raw 'im' has shape (H, W, C, n_azimuth, n_elevation).
+        einsum "abcde->deabc" -> (n_elevation, n_azimuth, H, W, C)
+        
+        Wait — disentanglement_lib uses the same einsum and then flattens
+        with elevation as outer loop. We verify axis sizes and swap if needed
+        so that axis 0 = elevation (size 4), axis 1 = azimuth (size 24).
+
+        Returns
+        -------
+        np.ndarray of shape (n_elevation=4, n_azimuth=24, 3, 64, 64), float32 in [0,1]
+        """
+        raw = sio.loadmat(str(mat_file))['im']
+        mesh = np.einsum("abcde->deabc", raw)
+        # mesh shape is (d, e, H, W, C) where d,e are two of {4, 24}
+        # ensure axis 0 = elevation (4), axis 1 = azimuth (24)
+        if mesh.shape[0] == 24 and mesh.shape[1] == 4:
+            mesh = mesh.transpose(1, 0, 2, 3, 4)
+        # now mesh: (4, 24, H, W, C)
+
+        n_el, n_az = mesh.shape[0], mesh.shape[1]
+        flattened = mesh.reshape((-1,) + mesh.shape[2:])  # (96, H, W, C)
+
+        out = np.zeros((n_el, n_az, 3, 64, 64), dtype=np.float32)
+        for idx in range(flattened.shape[0]):
+            el_idx = idx // n_az
+            az_idx = idx % n_az
+            img = Image.fromarray(flattened[idx])
+            img = img.resize((64, 64), Image.LANCZOS)
+            out[el_idx, az_idx] = np.array(img, dtype=np.float32).transpose(2, 0, 1) / 255.0
+        return out
+
+    def __len__(self) -> int:
+        return self.X.shape[0]
+
+    def latent_to_index(self, latents: torch.Tensor) -> torch.Tensor:
+        """
+        Convert latent factor indices to dataset sample index.
+
+        Parameters
+        ----------
+        latents : torch.Tensor
+            Latent factor indices [elevation, azimuth, object_type].
+
+        Returns
+        -------
+        torch.Tensor
+            Dataset index corresponding to the latent factors.
+        """
+        return torch.dot(latents, self.latents_bases)
+
+    def __getitem__(self, index):
+        """
+        Get a sample from the dataset.
+
+        Parameters
+        ----------
+        index : int
+            Index of the sample to retrieve.
+
+        Returns
+        -------
+        If paired=False:
+            tuple of (image, latent_classes)
+                image : torch.Tensor of shape (3, 64, 64)
+                latent_classes : torch.Tensor of shape (3,)
+
+        If paired=True:
+            tuple of ((image1, image2), (factors1, factors2))
+                image1, image2 : torch.Tensor of shape (3, 64, 64)
+                factors1, factors2 : torch.Tensor of shape (3,)
+        """
+        x1, y1 = self.X[index], self.latents_classes[index]
+        if not self.paired:
+            return x1, y1
+
+        # k: int = self.K if self.K != -1 else int(torch.randint(1, int(self.latents_factors), ()))
+        k: int = self.K if self.K != -1 else int(torch.randint(0, int(self.latents_factors), ()))
+
+        y2 = y1.clone()
+        idxs_k = torch.randperm(self.latents_factors)[:k]
+        S = self.latents_sizes[idxs_k]
+        offsets = (torch.rand(k) * (S - 1)).long() + 1
+        y2[idxs_k] = (y2[idxs_k] + offsets) % S
+        x2 = self.X[self.latent_to_index(y2)]
+
+        return (x1, x2), (y1, y2)
+    
+class MPI3DReal(Dataset):
+    """
+    MPI3D-Real dataset for disentanglement testing.
+
+    Introduced in "On the Transfer of Inductive Bias from Simulation to the
+    Real World: a New Disentanglement Dataset" (Gondal et al., NeurIPS 2019).
+    Contains real-world photographs of objects on a robotic arm platform,
+    with 7 controlled ground-truth factors of variation.
+
+    The dataset contains images parameterized by:
+    - Object color  (6 values: white, green, red, blue, brown, olive)
+    - Object shape  (6 values: cone, cube, cylinder, hexagonal, pyramid, sphere)
+    - Object size   (2 values: small, large)
+    - Camera height (3 values: top, center, bottom)
+    - Background color (3 values: purple, sea green, salmon)
+    - Horizontal axis  (40 values)
+    - Vertical axis    (40 values)
+
+    Total: 6×6×2×3×3×40×40 = 1,036,800 images at 64×64 RGB.
+
+    For citations:
+        @inproceedings{gondal2019transfer,
+            title={On the Transfer of Inductive Bias from Simulation to the
+                   Real World: a New Disentanglement Dataset},
+            author={Gondal, Muhammad Waleed and others},
+            booktitle={NeurIPS},
+            year={2019}
+        }
+
+    Parameters
+    ----------
+    K : int, optional
+        Number of latent factors to vary when creating paired samples.
+        If K=-1 (default), a random number of factors is chosen per sample.
+        Must satisfy 0 < K < number_of_latent_factors-1.
+    paired : bool, optional
+        If True (default), returns paired samples (x1, x2) with (y1, y2) labels.
+        If False, returns single samples (x, y).
+
+    Attributes
+    ----------
+    X : torch.Tensor
+        Images tensor of shape (n_samples, 3, 64, 64).
+    latents_classes : torch.Tensor
+        Discrete latent class indices of shape (n_samples, 7).
+        Columns: [object_color, object_shape, object_size,
+                  camera_height, background_color, horizontal_axis, vertical_axis]
+    latents_factors : int
+        Number of latent factors (7).
+    latents_sizes : torch.Tensor
+        Size of each latent factor: [6, 6, 2, 3, 3, 40, 40].
+    latents_bases : torch.Tensor
+        Bases for converting latent indices to dataset indices.
+    K : int
+        Number of factors to vary in paired mode.
+
+    Notes
+    -----
+    - Dataset is downloaded from HuggingFace on first use (~3.6 GB).
+    - Images are stored as float32 tensors in [0, 1] with shape (3, 64, 64).
+    - Dataset is cached as .npz after first load for faster subsequent access.
+    """
+
+    _NPZ_URL = "https://huggingface.co/datasets/waleedgondal/mpi3d/resolve/main/mpi3d_real.npz"
+    _FACTOR_SIZES = [6, 6, 2, 3, 3, 40, 40]
+    _FACTOR_NAMES = [
+        "object_color", "object_shape", "object_size",
+        "camera_height", "background_color", "horizontal_axis", "vertical_axis"
+    ]
+
+    def __init__(self, K: int = -1, paired: bool = True):
+        self.paired = paired
+        self.DATA_PATH = Path('..') / 'data' / 'mpi3d_real'
+        self.DATA_PATH.mkdir(parents=True, exist_ok=True)
+
+        npz_path = self.DATA_PATH / 'mpi3d_real.npz'
+        if not npz_path.exists():
+            logging.info('Downloading MPI3D-Real from %s', self._NPZ_URL)
+            urllib.request.urlretrieve(self._NPZ_URL, str(npz_path))
+            logging.info('Download complete: %s', npz_path)
+
+        logging.info('Loading MPI3D-Real dataset...')
+        data = np.load(npz_path)['images']  # (1036800, 64, 64, 3) uint8
+
+        # build latents_classes from the known factor structure
+        factor_sizes = np.array(self._FACTOR_SIZES)
+        n_total = data.shape[0]
+        latents_classes = np.zeros((n_total, len(factor_sizes)), dtype=np.int64)
+        # images are stored in row-major order: slowest = object_color, fastest = vertical_axis
+        # equivalent to np.indices over factor_sizes reshaped
+        indices = np.arange(n_total)
+        for f in range(len(factor_sizes) - 1, -1, -1):
+            latents_classes[:, f] = indices % factor_sizes[f]
+            indices = indices // factor_sizes[f]
+
+        # (n_total, 3, 64, 64) float32 in [0, 1]
+        imgs = data.transpose(0, 3, 1, 2).astype(np.float32) / 255.0
+
+        self.X = torch.as_tensor(imgs, dtype=torch.float32)
+        self.latents_classes = torch.as_tensor(latents_classes, dtype=torch.int64)
+
+        self.latents_factors = len(self._FACTOR_SIZES)
+        latents_bases = np.concatenate((
+            factor_sizes[::-1].cumprod()[::-1][1:],
+            np.array([1,])
+        ))
+        self.latents_sizes = torch.as_tensor(factor_sizes, dtype=torch.int64)
+        self.latents_bases = torch.as_tensor(latents_bases, dtype=torch.int64)
+
+        self.K = K
+        if K != -1:
+            assert 0 < self.K < self.latents_factors, 'K must be in 0 < K < #latentdims'
+
+    def __len__(self) -> int:
+        return self.X.shape[0]
+
+    def latent_to_index(self, latents: torch.Tensor) -> torch.Tensor:
+        """
+        Convert latent factor indices to dataset sample index.
+
+        Parameters
+        ----------
+        latents : torch.Tensor
+            Latent factor indices [object_color, object_shape, object_size,
+            camera_height, background_color, horizontal_axis, vertical_axis].
+
+        Returns
+        -------
+        torch.Tensor
+            Dataset index corresponding to the latent factors.
+        """
+        return torch.dot(latents, self.latents_bases)
+
+    def __getitem__(self, index):
+        """
+        Get a sample from the dataset.
+
+        Parameters
+        ----------
+        index : int
+            Index of the sample to retrieve.
+
+        Returns
+        -------
+        If paired=False:
+            tuple of (image, latent_classes)
+                image : torch.Tensor of shape (3, 64, 64)
+                latent_classes : torch.Tensor of shape (7,)
+
+        If paired=True:
+            tuple of ((image1, image2), (factors1, factors2))
+                image1, image2 : torch.Tensor of shape (3, 64, 64)
+                factors1, factors2 : torch.Tensor of shape (7,)
+        """
+        x1, y1 = self.X[index], self.latents_classes[index]
+        if not self.paired:
+            return x1, y1
+
+        k: int = self.K if self.K != -1 else int(torch.randint(1, self.latents_factors, ()))
+
+        y2 = y1.clone()
+        idxs_k = torch.randperm(self.latents_factors)[:k]
+        S = self.latents_sizes[idxs_k]
+        offsets = (torch.rand(k) * (S - 1)).long() + 1
+        y2[idxs_k] = (y2[idxs_k] + offsets) % S
+        x2 = self.X[self.latent_to_index(y2)]
+
+        return (x1, x2), (y1, y2)
+
+class SmallNORB(Dataset):
+    """
+    SmallNORB dataset for disentanglement testing.
+
+    Introduced in "Learning Methods for Generic Object Recognition with
+    Invariance to Pose and Lighting" (LeCun et al., CVPR 2004).
+    Contains grayscale stereo photographs of toy objects under controlled
+    pose and lighting variations.
+
+    Train and test chunks are concatenated into a single dataset (48,600
+    samples total), following the convention of disentanglement_lib.
+
+    The ground-truth latent factors are:
+    - Category   (5 values: four-legged animal, human, airplane, truck, car)
+    - Elevation  (9 values: 30°–70° in 5° increments, encoded 0–8)
+    - Azimuth    (18 values: 0°–340° in 20° increments, encoded 0–17)
+    - Lighting   (6 values: 0–5)
+
+    Instance (5 per chunk, 10 total) is present in ``latents_classes`` as
+    column 1 but is **not** varied when building paired samples, since
+    instances are not shared between train and test chunks and are not
+    considered informative for disentanglement evaluation.
+
+    Total active factor combinations: 5×9×18×6 = 4,860 (×10 instances = 48,600).
+
+    For citations::
+
+        @inproceedings{lecun2004learning,
+            title={Learning Methods for Generic Object Recognition with
+                   Invariance to Pose and Lighting},
+            author={LeCun, Yann and Huang, Fu Jie and Bottou, Léon},
+            booktitle={CVPR},
+            year={2004}
+        }
+
+    Parameters
+    ----------
+    K : int, optional
+        Number of latent factors to vary when creating paired samples.
+        ``K=-1`` (default) draws a random count per sample in [1, 3].
+        Must satisfy ``0 < K < 4`` (four active factors).
+    paired : bool, optional
+        If ``True`` (default) returns paired samples ``((x1, x2), (y1, y2))``.
+        If ``False``, returns single samples ``(x, y)``.
+
+    Attributes
+    ----------
+    X : torch.Tensor
+        Images tensor of shape ``(48600, 1, 64, 64)``, float32 in [0, 1].
+    latents_classes : torch.Tensor
+        Discrete latent indices of shape ``(48600, 5)``.
+        Columns: ``[category, instance, elevation, azimuth, lighting]``.
+        Azimuth is 0-based (0–17); instance is 0-based (0–9).
+    latents_factors : int
+        Total number of factor columns (5).
+    latents_sizes : torch.Tensor
+        Size of each factor: ``[5, 10, 9, 18, 6]``.
+    latents_bases : torch.Tensor
+        Bases for index arithmetic over the full 5-factor space.
+    K : int
+        Number of factors to vary in paired mode.
+
+    Notes
+    -----
+    - Raw ``.mat`` files (~50 MB total) are downloaded from the NYU mirror on
+      first use and cached under ``../data/smallnorb/``.
+    - Images are resized from 96×96 to 64×64 (left camera only).
+    - A preprocessed ``.npz`` cache is written after the first load for faster
+      subsequent access.
+    - Paired sampling uses a dict lookup ``(category, instance, elevation,
+      azimuth, lighting) → row_index`` since SmallNORB is a complete
+      Cartesian product once train+test are merged.
+    """
+
+    _BASE_URL = "https://cs.nyu.edu/~yann/data/norb-v1.0-small/"
+    _CHUNKS = [
+        "smallnorb-5x46789x9x18x6x2x96x96-training",
+        "smallnorb-5x01235x9x18x6x2x96x96-testing",
+    ]
+
+    # [category, instance, elevation, azimuth, lighting]
+    _FACTOR_SIZES = [5, 10, 9, 18, 6]
+    _FACTOR_NAMES = ["category", "instance", "elevation", "azimuth", "lighting"]
+
+    # Indices of factors varied during paired sampling (instance excluded).
+    _ACTIVE_FACTOR_IDXS = [0, 2, 3, 4]   # category, elevation, azimuth, lighting
+    _N_ACTIVE = 4
+
+    # Magic-number → numpy dtype (from the SmallNORB binary format spec).
+    _DTYPE_MAP = {
+        0x1E3D4C55: np.dtype("uint8"),
+        0x1E3D4C54: np.dtype("int32"),
+        0x1E3D4C51: np.dtype("float32"),
+        0x1E3D4C53: np.dtype("float64"),
+    }
+
+    def __init__(self, K: int = -1, paired: bool = True):
+        self.paired = paired
+
+        self.DATA_PATH = Path("..") / "data" / "smallnorb"
+        self.DATA_PATH.mkdir(parents=True, exist_ok=True)
+
+        npz_cache = self.DATA_PATH / "smallnorb_64.npz"
+
+        if npz_cache.exists():
+            logging.info("Loading SmallNORB from cache: %s", npz_cache)
+            cache = np.load(npz_cache)
+            imgs            = cache["images"]   # (48600, 1, 64, 64) float32
+            latents_classes = cache["latents"]  # (48600, 5) int64
+        else:
+            imgs, latents_classes = self._load_all_chunks()
+            logging.info("Saving cache to %s", npz_cache)
+            np.savez_compressed(npz_cache, images=imgs, latents=latents_classes)
+
+        self.X               = torch.as_tensor(imgs,            dtype=torch.float32)
+        self.latents_classes = torch.as_tensor(latents_classes, dtype=torch.int64)
+
+        self.latents_factors = len(self._FACTOR_SIZES)
+        factor_sizes         = np.array(self._FACTOR_SIZES)
+        latents_bases        = np.concatenate((
+            factor_sizes[::-1].cumprod()[::-1][1:],
+            np.array([1]),
+        ))
+        self.latents_sizes = torch.as_tensor(factor_sizes,  dtype=torch.int64)
+        self.latents_bases = torch.as_tensor(latents_bases, dtype=torch.int64)
+
+        self.K = K
+        if K != -1:
+            assert 0 < K < self._N_ACTIVE, (
+                f"K must satisfy 0 < K < {self._N_ACTIVE} (active factors), got {K}"
+            )
+
+        # Lookup: (category, instance, elevation, azimuth, lighting) → row index.
+        logging.info("Building SmallNORB lookup table...")
+        lc = latents_classes
+        self._latent_to_idx: dict[tuple, int] = {
+            (int(lc[i, 0]), int(lc[i, 1]), int(lc[i, 2]),
+             int(lc[i, 3]), int(lc[i, 4])): i
+            for i in range(lc.shape[0])
+        }
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def __len__(self) -> int:
+        return self.X.shape[0]
+
+    def latent_to_index(self, latents: torch.Tensor) -> int | None:
+        """
+        Convert a latent factor vector to the dataset row index.
+
+        Parameters
+        ----------
+        latents : torch.Tensor
+            Integer tensor of shape ``(5,)`` with values
+            ``[category, instance, elevation, azimuth, lighting]``.
+
+        Returns
+        -------
+        int or None
+            Dataset row index, or ``None`` if the combination is absent.
+        """
+        key = tuple(int(v) for v in latents.tolist())
+        return self._latent_to_idx.get(key)
+
+    def __getitem__(self, index: int):
+        """
+        Get a (possibly paired) sample from the dataset.
+
+        Parameters
+        ----------
+        index : int
+            Row index of the anchor sample.
+
+        Returns
+        -------
+        If ``paired=False``:
+            tuple ``(image, latent_classes)``
+                image         : torch.Tensor, shape ``(1, 64, 64)``
+                latent_classes: torch.Tensor, shape ``(5,)``
+
+        If ``paired=True``:
+            tuple ``((image1, image2), (factors1, factors2))``
+                image1, image2         : torch.Tensor, shape ``(1, 64, 64)``
+                factors1, factors2     : torch.Tensor, shape ``(5,)``
+
+        Notes
+        -----
+        Only the four active factors (category, elevation, azimuth, lighting)
+        are varied; instance is kept fixed so that the paired sample always
+        exists in the dataset.
+        """
+        x1, y1 = self.X[index], self.latents_classes[index]
+        if not self.paired:
+            return x1, y1
+
+        k = self.K if self.K != -1 else int(torch.randint(1, self._N_ACTIVE, ()))
+
+        y2      = y1.clone()
+        chosen  = torch.randperm(self._N_ACTIVE)[:k]
+        active  = torch.tensor(self._ACTIVE_FACTOR_IDXS)
+        idxs_k  = active[chosen]
+
+        S       = self.latents_sizes[idxs_k]
+        offsets = (torch.rand(k) * (S - 1)).long() + 1
+        y2[idxs_k] = (y2[idxs_k] + offsets) % S
+
+        idx2 = self.latent_to_index(y2)
+        # idx2 is always valid: instance is fixed, and the remaining 4 factors
+        # form a complete Cartesian product across both merged chunks.
+        x2 = self.X[idx2]
+
+        return (x1, x2), (y1, y2)
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _load_all_chunks(self) -> tuple[np.ndarray, np.ndarray]:
+        """Download (if needed) and parse both chunks; return merged arrays."""
+        all_imgs, all_feats = [], []
+
+        for chunk in self._CHUNKS:
+            imgs_chunk, feats_chunk = self._load_chunk(chunk)
+            all_imgs.append(imgs_chunk)
+            all_feats.append(feats_chunk)
+
+        images   = np.concatenate(all_imgs,  axis=0)  # (48600, 1, 64, 64)
+        features = np.concatenate(all_feats, axis=0)  # (48600, 5)
+        return images, features
+
+    def _load_chunk(self, chunk: str):
+        dat_path  = self._ensure_file(chunk + "-dat.mat")
+        cat_path  = self._ensure_file(chunk + "-cat.mat")
+        info_path = self._ensure_file(chunk + "-info.mat")
+
+        dat  = SmallNORB._read_binary_matrix(dat_path)   # (N, 2, 96, 96)
+        cat  = SmallNORB._read_binary_matrix(cat_path)
+        info = SmallNORB._read_binary_matrix(info_path)
+
+        left_imgs = dat[:, 0, :, :]  # (N, 96, 96)
+
+        imgs = SmallNORB._resize_images(left_imgs)
+        imgs = imgs[:, np.newaxis, :, :]
+
+        features = np.column_stack((
+            cat,
+            info[:, 0],
+            info[:, 1],
+            info[:, 2] // 2,
+            info[:, 3],
+        )).astype(np.int64)
+
+        return imgs, features
+
+    def _ensure_file(self, filename: str) -> Path:
+        """Download ``filename`` from the NYU mirror if not already cached."""
+        dest = self.DATA_PATH / filename
+        if not dest.exists():
+            url = self._BASE_URL + filename
+            logging.info("Downloading %s → %s", url, dest)
+            urllib.request.urlretrieve(url, str(dest))
+            logging.info("Downloaded %s", filename)
+        return dest
+
+    @staticmethod
+    def _read_binary_matrix(path: Path) -> np.ndarray:
+        """
+        Parse a SmallNORB binary matrix file.
+
+        The format is documented at https://cs.nyu.edu/~yann/data/norb-v1.0-small/
+        and mirrors the implementation in disentanglement_lib.
+        """
+        with open(path, "rb") as f:
+            s = f.read()
+
+        magic   = int(np.frombuffer(s, dtype="<i4", count=1, offset=0))
+        ndim    = int(np.frombuffer(s, dtype="<i4", count=1, offset=4))
+        n_dim_f = max(3, ndim)  # file always stores at least 3 dimension fields
+        raw_dims = np.frombuffer(s, dtype="<i4", count=n_dim_f, offset=8)
+        dims     = [int(raw_dims[i]) for i in range(ndim)]
+
+        dtype_map = {
+            0x1E3D4C55: np.dtype("uint8"),
+            0x1E3D4C54: np.dtype("int32"),
+            0x1E3D4C51: np.dtype("float32"),
+            0x1E3D4C53: np.dtype("float64"),
+        }
+        if magic not in dtype_map:
+            raise ValueError(f"Unknown SmallNORB magic number: {hex(magic)}")
+
+        data_offset = 8 + n_dim_f * 4
+        data = np.frombuffer(s, dtype=dtype_map[magic], offset=data_offset)
+        return data.reshape(dims).copy()
+
+    @staticmethod
+    def _resize_images(imgs: np.ndarray) -> np.ndarray:
+        """
+        Resize a batch of uint8 images from 96×96 to 64×64.
+
+        Parameters
+        ----------
+        imgs : np.ndarray, shape (N, 96, 96), dtype uint8
+
+        Returns
+        -------
+        np.ndarray, shape (N, 64, 64), dtype float32, values in [0, 1]
+        """
+        out = np.empty((imgs.shape[0], 64, 64), dtype=np.float32)
+        for i, img in enumerate(imgs):
+            pil = Image.fromarray(img, mode="L")
+            pil = pil.resize((64, 64), Image.LANCZOS)
+            out[i] = np.asarray(pil, dtype=np.float32) / 255.0
+        return out

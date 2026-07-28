@@ -66,3 +66,4 @@ class EarlyStopping:
             False otherwise.
         """
         return self.epochs_counter >= self.patience
+

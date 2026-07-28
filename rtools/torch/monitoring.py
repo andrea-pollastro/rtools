@@ -174,3 +174,5 @@ class History:
                     else:
                         row[metric] = ''
                 writer.writerow(row)
+
+                
